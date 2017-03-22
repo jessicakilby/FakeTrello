@@ -1,19 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using FakeTrello.Models;
+using System.Data.SqlClient;
 using System.Configuration;
 using System.Data;
-using System.Data.SqlClient;
 using System.Diagnostics;
-using FakeTrello.Models;
+using FakeTrello.Controllers.Contracts;
 
-namespace FakeTrello.DAL
+namespace FakeTrello.DAL.Repository
 {
-    public class FakeTrelloRepository : IRepository
+    public class BoardRepository : IBoardManager, IBoardQuery
     {
-        //private FakeTrelloContext context; // Data member
         SqlConnection _trelloConnection;
 
-        public FakeTrelloRepository()
+        public BoardRepository()
         {
             _trelloConnection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString);
         }
@@ -50,34 +52,35 @@ namespace FakeTrello.DAL
             }
         }
 
-        public void AddCard(string name, int listId, string ownerId)
+        public void EditBoardName(int boardId, string newname)
         {
-            //throw new NotImplementedException();
-        }
+            _trelloConnection.Open();
 
-        public void AddCard(string name, List list, ApplicationUser owner)
-        {
-            //throw new NotImplementedException();
-        }
+            try
+            {
+                var updateBoardCommand = _trelloConnection.CreateCommand();
+                updateBoardCommand.CommandText = @"
+                    Update Boards 
+                    Set Name = @NewName
+                    Where boardid = @boardId";
+                var nameParameter = new SqlParameter("NewName", SqlDbType.VarChar);
+                nameParameter.Value = newname;
+                updateBoardCommand.Parameters.Add(nameParameter);
+                var boardIdParameter = new SqlParameter("boardId", SqlDbType.Int);
+                boardIdParameter.Value = boardId;
+                updateBoardCommand.Parameters.Add(boardIdParameter);
 
-        public void AddList(string name, int boardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void AddList(string name, Board board)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool AttachUser(string userId, int cardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool CopyCard(int cardId, int newListId, string newOwnerId)
-        {
-            throw new NotImplementedException();
+                updateBoardCommand.ExecuteNonQuery();
+            }
+            catch (SqlException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Debug.WriteLine(ex.StackTrace);
+            }
+            finally
+            {
+                _trelloConnection.Close();
+            }
         }
 
         public Board GetBoard(int boardId)
@@ -104,19 +107,18 @@ namespace FakeTrello.DAL
                         BoardId = reader.GetInt32(0),
                         Name = reader.GetString(1),
                         URL = reader.GetString(2),
-                        Owner = new ApplicationUser {Id = reader.GetString(3)}
+                        Owner = new ApplicationUser { Id = reader.GetString(3) }
                     };
                     return board;
                 }
             }
-            catch(Exception ex) { }
+            catch (Exception ex) { }
             finally
             {
                 _trelloConnection.Close();
             }
 
             return null;
-            
         }
 
         public List<Board> GetBoardsFromUser(string userId)
@@ -161,42 +163,6 @@ namespace FakeTrello.DAL
             }
 
             return new List<Board>();
-
-        }
-
-        public Card GetCard(int cardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<ApplicationUser> GetCardAttendees(int cardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<Card> GetCardsFromBoard(int boardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<Card> GetCardsFromList(int listId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List GetList(int listId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<List> GetListsFromBoard(int boardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool MoveCard(int cardId, int oldListId, int newListId)
-        {
-            throw new NotImplementedException();
         }
 
         public bool RemoveBoard(int boardId)
@@ -230,57 +196,6 @@ namespace FakeTrello.DAL
             }
 
             return false;
-            
-        }
-
-        public bool RemoveCard(int cardId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool RemoveList(int listId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void EditBoardName(int boardId, string newname)
-        {
-            //Board found_board = GetBoard(boardId);
-            //if (found_board != null)
-            //{
-            //    found_board.Name = newname; // Akin to 'git add'
-            //    Context.SaveChanges(); // Akin to 'git commit'
-            //}
-            // False Positive: SaveChanges is missing.
-
-            _trelloConnection.Open();
-
-            try
-            {
-                var updateBoardCommand = _trelloConnection.CreateCommand();
-                updateBoardCommand.CommandText = @"
-                    Update Boards 
-                    Set Name = @NewName
-                    Where boardid = @boardId";
-                var nameParameter = new SqlParameter("NewName", SqlDbType.VarChar);
-                nameParameter.Value = newname;
-                updateBoardCommand.Parameters.Add(nameParameter);
-                var boardIdParameter = new SqlParameter("boardId", SqlDbType.Int);
-                boardIdParameter.Value = boardId;
-                updateBoardCommand.Parameters.Add(boardIdParameter);
-
-                updateBoardCommand.ExecuteNonQuery();
-            }
-            catch (SqlException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                Debug.WriteLine(ex.StackTrace);
-            }
-            finally
-            {
-                _trelloConnection.Close();
-            }
-
         }
     }
 }
